@@ -9,7 +9,8 @@ source.include_exts = py,png,jpg,kv,atlas,ttf
 
 version = 0.1
 
-requirements = python3==3.13.9,hostpython3==3.13.9,kivy,py7zr,pycryptodome,charset_normalizer==3.3.2,liblzma
+# Cleaned requirements - lets python-for-android handle standard module bundling
+requirements = python3,kivy,py7zr,pycryptodome,charset_normalizer
 
 orientation = portrait
 fullscreen = 0
