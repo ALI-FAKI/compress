@@ -19,6 +19,7 @@ jobs:
           name: Build APK
           command: |
             rm -rf .buildozer
+            rm -rf ~/.buildozer
             buildozer -v android debug
           no_output_timeout: 60m
       - store_artifacts:
