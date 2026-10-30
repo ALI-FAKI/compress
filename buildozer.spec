@@ -9,7 +9,7 @@ source.include_exts = py,png,jpg,kv,atlas,ttf
 
 version = 0.1
 
-requirements = python3,kivy,py7zr,pycryptodome
+requirements = python3==3.13.9,hostpython3==3.13.9,kivy,py7zr,pycryptodome
 
 orientation = portrait
 fullscreen = 0
