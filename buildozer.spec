@@ -6,10 +6,11 @@ package.domain = org.secure
 
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,ttf
+source.include_patterns = assets/*,images/*
 
 version = 0.1
 
-requirements = python3,kivy,py7zr,pycryptodome
+requirements = python3==3.10.12,kivy,py7zr,pycryptodome,charset_normalizer==3.3.2
 
 orientation = portrait
 fullscreen = 0
