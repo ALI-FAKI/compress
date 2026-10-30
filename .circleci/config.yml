@@ -17,7 +17,10 @@ jobs:
             pip install buildozer cython==0.29.33
       - run:
           name: Build APK
-          command: buildozer -v android debug
+          command: |
+            rm -rf .buildozer
+            buildozer -v android debug
+          no_output_timeout: 30m
       - store_artifacts:
           path: bin
           destination: apk
