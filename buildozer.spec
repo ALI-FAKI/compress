@@ -11,8 +11,8 @@ version = 0.1
 
 requirements = python3,kivy
 
-# Force python-for-android to use a stable branch compatible with Python 3.11/3.12 standard wheels
-p4a.branch = master
+# Pin to stable p4a release (v2024.01.21) to avoid Python 3.14 Android wheel incompatibility on master
+p4a.branch = v2024.01.21
 
 orientation = portrait
 fullscreen = 0
