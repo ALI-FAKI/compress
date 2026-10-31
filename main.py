@@ -8,8 +8,15 @@ from kivy.uix.filechooser import FileChooserListView
 from compressor import compress_and_encrypt, extract_archive
 import os
 
+# Detect if running on Android
+try:
+    from android.permissions import request_permissions, Permission
+    ANDROID = True
+except ImportError:
+    ANDROID = False
+
 # Safe cross-platform base directory fallback
-if platform := os.environ.get('ANDROID_ARGUMENT'):
+if ANDROID:
     BASE_DIR = "/storage/emulated/0/Download"
 else:
     BASE_DIR = os.path.expanduser("~")
@@ -19,6 +26,13 @@ class SecureCompressor(BoxLayout):
     def __init__(self, **kw):
         super().__init__(orientation='vertical', padding=20, spacing=12, **kw)
         self.selected = []
+
+        # Request storage permissions on Android startup
+        if ANDROID:
+            request_permissions([
+                Permission.READ_EXTERNAL_STORAGE,
+                Permission.WRITE_EXTERNAL_STORAGE
+            ])
 
         self.add_widget(Label(text="Secure Compressor", font_size=22, size_hint=(1, 0.12)))
         self.file_label = Label(text="No files selected", size_hint=(1, 0.08))
@@ -44,7 +58,7 @@ class SecureCompressor(BoxLayout):
         self.status = Label(text="Ready", size_hint=(1, 0.1))
         self.add_widget(self.status)
 
-    def pick_files(self):
+    def pick_files(self, instance):
         fc = FileChooserListView(path=BASE_DIR, multiselect=True)
         popup = Popup(title="Select Files", content=fc, size_hint=(0.95, 0.95))
 
@@ -61,7 +75,7 @@ class SecureCompressor(BoxLayout):
         popup.content = box
         popup.open()
 
-    def do_compress(self):
+    def do_compress(self, instance):
         if not self.selected:
             self.status.text = "Select files first"
             return
@@ -74,7 +88,7 @@ class SecureCompressor(BoxLayout):
         except Exception as e:
             self.status.text = f"Error: {e}"
 
-    def pick_archive(self):
+    def pick_archive(self, instance):
         fc = FileChooserListView(path=BASE_DIR, filters=["*.zip"])
         popup = Popup(title="Select .zip Archive", content=fc, size_hint=(0.95, 0.95))
 
