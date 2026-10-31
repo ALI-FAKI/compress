@@ -20,7 +20,9 @@ jobs:
           command: |
             rm -rf .buildozer
             rm -rf ~/.buildozer
+            rm -rf ~/.local/share/python-for-android
             rm -f requirements.txt
+            pip cache purge
             buildozer -v android debug
           no_output_timeout: 60m
       - store_artifacts:
