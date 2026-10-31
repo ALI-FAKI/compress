@@ -9,8 +9,10 @@ source.include_exts = py,png,jpg,kv,atlas,ttf
 
 version = 0.1
 
-# Clean requirements without explicit version pinning to prevent host/target mismatches
 requirements = python3,kivy
+
+# Force python-for-android to use a stable branch compatible with Python 3.11/3.12 standard wheels
+p4a.branch = master
 
 orientation = portrait
 fullscreen = 0
