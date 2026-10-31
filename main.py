@@ -4,8 +4,7 @@ from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
-from kivy.uix.filechooser import FileChooserListView
-from kivy.graphics import Color, RoundedRectangle, Line
+from plyer import filechooser
 from compressor import compress_and_encrypt, extract_archive
 import os
 
@@ -35,6 +34,7 @@ class ProfessionalButton(Button):
         self.color = (0.95, 0.96, 0.98, 1)
 
         with self.canvas.before:
+            from kivy.graphics import Color, RoundedRectangle
             self.col = Color(*self.bg_color)
             self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[4])
         self.bind(pos=self.update_canvas, size=self.update_canvas)
@@ -81,7 +81,7 @@ class SecureCompressor(BoxLayout):
         self.file_label.bind(size=self.file_label.setter('text_size'))
         self.add_widget(self.file_label)
 
-        # File Selection Button
+        # Native File Selection Button
         b1 = ProfessionalButton(text="Select Files", bg_color=(0.22, 0.28, 0.36, 1), size_hint=(1, 0.11))
         b1.bind(on_release=self.pick_files)
         self.add_widget(b1)
@@ -124,71 +124,82 @@ class SecureCompressor(BoxLayout):
         self.status.bind(size=self.status.setter('text_size'))
         self.add_widget(self.status)
 
+    def show_alert(self, title, message):
+        """Displays a modal popup so the user receives clear visual confirmation."""
+        content = BoxLayout(orientation='vertical', padding=15, spacing=15)
+        content.add_widget(Label(text=message, font_size='14sp', color=(0.9, 0.9, 0.9, 1)))
+        
+        btn = ProfessionalButton(text="Dismiss", bg_color=(0.22, 0.28, 0.36, 1), size_hint=(1, 0.4))
+        popup = Popup(title=title, content=content, size_hint=(0.8, 0.4))
+        btn.bind(on_release=popup.dismiss)
+        content.add_widget(btn)
+        popup.open()
+
     def pick_files(self, instance):
         try:
-            content = BoxLayout(orientation='vertical', spacing=10, padding=12)
-            fc = FileChooserListView(path=BASE_DIR, multiselect=True)
-            content.add_widget(fc)
-
-            popup = Popup(title="Select Target Files", content=content, size_hint=(0.92, 0.92))
-
-            def choose(_):
-                self.selected = list(fc.selection)
-                self.file_label.text = f"Target: {len(self.selected)} file(s) selected"
-                popup.dismiss()
-
-            btn = ProfessionalButton(text="Confirm Selection", bg_color=(0.12, 0.48, 0.32, 1), size_hint=(1, 0.14))
-            btn.bind(on_release=choose)
-            content.add_widget(btn)
-
-            popup.open()
+            # Opens the true native Android or PC file manager browser
+            filechooser.open_file(
+                on_selection=self.handle_file_selection,
+                multiple=True,
+                title="Select Files to Compress"
+            )
         except Exception as e:
-            self.status.text = f"Error: {e}"
+            self.status.text = f"Status: Error opening file manager"
+            self.show_alert("Selection Error", str(e))
+
+    def handle_file_selection(self, selection):
+        if selection:
+            self.selected = selection
+            self.file_label.text = f"Target: {len(self.selected)} file(s) selected"
+            self.status.text = "Status: Files loaded successfully"
 
     def do_compress(self, instance):
         if not self.selected:
-            self.status.text = "Status: Error - No files selected"
+            self.show_alert("Action Required", "Please select files before compressing.")
             return
+        
         out = os.path.join(BASE_DIR, "secure_archive.zip")
         pwd = self.pwd_input.text or None
         try:
             compress_and_encrypt(self.selected, out, password=pwd)
             size = os.path.getsize(out) / 1e6
-            self.status.text = f"Status: Complete ({size:.1f} MB saved to Download)"
+            self.status.text = f"Status: Complete ({size:.1f} MB)"
+            self.show_alert("Success", f"Archive successfully created:\n{out}")
         except Exception as e:
-            self.status.text = f"Status: Error - {e}"
+            self.status.text = "Status: Compression failed"
+            self.show_alert("Compression Error", str(e))
 
     def pick_archive(self, instance):
         try:
-            content = BoxLayout(orientation='vertical', spacing=10, padding=12)
-            fc = FileChooserListView(path=BASE_DIR, filters=["*.zip"])
-            content.add_widget(fc)
-
-            popup = Popup(title="Select Archive (.zip)", content=content, size_hint=(0.92, 0.92))
-
-            def choose(_):
-                if not fc.selection:
-                    return
-                arc = fc.selection[0]
-                popup.dismiss()
-                outdir = os.path.join(BASE_DIR, "extracted_files")
-                os.makedirs(outdir, exist_ok=True)
-                pwd = self.pwd_input.text or None
-                ok, msg = extract_archive(arc, outdir, password=pwd)
-                self.status.text = f"Status: {msg}"
-
-            btn = ProfessionalButton(text="Execute Extraction", bg_color=(0.20, 0.38, 0.58, 1), size_hint=(1, 0.14))
-            btn.bind(on_release=choose)
-            content.add_widget(btn)
-
-            popup.open()
+            # Opens native picker filtered for ZIP archives
+            filechooser.open_file(
+                on_selection=self.handle_archive_selection,
+                filters=[("ZIP Archives", "*.zip")],
+                title="Select Archive to Extract"
+            )
         except Exception as e:
-            self.status.text = f"Error: {e}"
+            self.status.text = f"Status: Error opening archive picker"
+            self.show_alert("Picker Error", str(e))
+
+    def handle_archive_selection(self, selection):
+        if not selection:
+            return
+        arc = selection[0]
+        outdir = os.path.join(BASE_DIR, "extracted_files")
+        os.makedirs(outdir, exist_ok=True)
+        pwd = self.pwd_input.text or None
+        
+        try:
+            ok, msg = extract_archive(arc, outdir, password=pwd)
+            self.status.text = f"Status: Extraction complete"
+            self.show_alert("Extraction Result", f"{msg}\nSaved to: {outdir}")
+        except Exception as e:
+            self.status.text = "Status: Extraction failed"
+            self.show_alert("Extraction Error", str(e))
 
 
 class MyApp(App):
     def build(self):
-        # Deep enterprise dark-neutral background canvas
         from kivy.core.window import Window
         Window.clearcolor = (0.07, 0.08, 0.10, 1)
         return SecureCompressor()
