@@ -3,18 +3,16 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/android:2024.01
     steps:
       - checkout
       - run:
-          name: Install system dependencies
+          name: Install Python dependencies and Buildozer
           command: |
             sudo apt-get update
-            sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext autopoint libltdl-dev
-      - run:
-          name: Install Buildozer
-          command: |
-            pip install buildozer cython==0.29.33
+            sudo apt-get install -y python3-pip python3-dev git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext autopoint libltdl-dev
+            pip3 install --upgrade pip
+            pip3 install buildozer cython==0.29.33
       - run:
           name: Build APK
           command: |
@@ -22,7 +20,6 @@ jobs:
             rm -rf ~/.buildozer
             rm -rf ~/.local/share/python-for-android
             rm -f requirements.txt
-            pip cache purge
             buildozer -v android debug
           no_output_timeout: 60m
       - store_artifacts:
