@@ -4,18 +4,17 @@ from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
-from plyer import filechooser
 from compressor import compress_and_encrypt, extract_archive
 import os
 
 # Detect if running on Android
 try:
     from android.permissions import request_permissions, Permission
+    from jnius import autoclass
     ANDROID = True
 except ImportError:
     ANDROID = False
 
-# Safe cross-platform base directory fallback
 if ANDROID:
     BASE_DIR = "/storage/emulated/0/Download"
 else:
@@ -23,7 +22,6 @@ else:
 
 
 class ProfessionalButton(Button):
-    """Clean, corporate button style with sharp geometry and subtle feedback."""
     def __init__(self, bg_color=(0.18, 0.22, 0.28, 1), **kwargs):
         super().__init__(**kwargs)
         self.background_normal = ''
@@ -49,14 +47,13 @@ class SecureCompressor(BoxLayout):
         super().__init__(orientation='vertical', padding=24, spacing=14, **kw)
         self.selected = []
 
-        # Request storage permissions on Android startup
         if ANDROID:
             request_permissions([
                 Permission.READ_EXTERNAL_STORAGE,
                 Permission.WRITE_EXTERNAL_STORAGE
             ])
 
-        # Header Title
+        # Title
         title_label = Label(
             text="Secure Archive Management",
             font_size='20sp',
@@ -81,8 +78,8 @@ class SecureCompressor(BoxLayout):
         self.file_label.bind(size=self.file_label.setter('text_size'))
         self.add_widget(self.file_label)
 
-        # Native File Selection Button
-        b1 = ProfessionalButton(text="Select Files", bg_color=(0.22, 0.28, 0.36, 1), size_hint=(1, 0.11))
+        # File Selection Button
+        b1 = ProfessionalButton(text="Select Files from Downloads", bg_color=(0.22, 0.28, 0.36, 1), size_hint=(1, 0.11))
         b1.bind(on_release=self.pick_files)
         self.add_widget(b1)
 
@@ -125,7 +122,6 @@ class SecureCompressor(BoxLayout):
         self.add_widget(self.status)
 
     def show_alert(self, title, message):
-        """Displays a modal popup so the user receives clear visual confirmation."""
         content = BoxLayout(orientation='vertical', padding=15, spacing=15)
         content.add_widget(Label(text=message, font_size='14sp', color=(0.9, 0.9, 0.9, 1)))
         
@@ -136,16 +132,26 @@ class SecureCompressor(BoxLayout):
         popup.open()
 
     def pick_files(self, instance):
-        try:
-            # Opens the true native Android or PC file manager browser
-            filechooser.open_file(
-                on_selection=self.handle_file_selection,
-                multiple=True,
-                title="Select Files to Compress"
-            )
-        except Exception as e:
-            self.status.text = f"Status: Error opening file manager"
-            self.show_alert("Selection Error", str(e))
+        if ANDROID:
+            # Safely grab files directly from phone Download directory to avoid URI crashes
+            try:
+                if os.path.exists(BASE_DIR):
+                    files = [os.path.join(BASE_DIR, f) for f in os.listdir(BASE_DIR) if os.path.isfile(os.path.join(BASE_DIR, f))]
+                    if files:
+                        # Automatically select the latest file or list them
+                        self.selected = [files[-1]]
+                        filename = os.path.basename(self.selected[0])
+                        self.file_label.text = f"Target: {filename}"
+                        self.status.text = "Status: File loaded from Downloads"
+                        self.show_alert("File Loaded", f"Successfully loaded:\n{filename}")
+                        return
+                self.show_alert("Notice", "No files found in your Download folder.")
+            except Exception as e:
+                self.show_alert("Error", str(e))
+        else:
+            # PC fallback using plyer or direct dialog
+            from plyer import filechooser
+            filechooser.open_file(on_selection=self.handle_file_selection, multiple=True)
 
     def handle_file_selection(self, selection):
         if selection:
@@ -164,22 +170,31 @@ class SecureCompressor(BoxLayout):
             compress_and_encrypt(self.selected, out, password=pwd)
             size = os.path.getsize(out) / 1e6
             self.status.text = f"Status: Complete ({size:.1f} MB)"
-            self.show_alert("Success", f"Archive successfully created:\n{out}")
+            self.show_alert("Success", f"Archive successfully created at:\n{out}")
         except Exception as e:
             self.status.text = "Status: Compression failed"
             self.show_alert("Compression Error", str(e))
 
     def pick_archive(self, instance):
-        try:
-            # Opens native picker filtered for ZIP archives
-            filechooser.open_file(
-                on_selection=self.handle_archive_selection,
-                filters=[("ZIP Archives", "*.zip")],
-                title="Select Archive to Extract"
-            )
-        except Exception as e:
-            self.status.text = f"Status: Error opening archive picker"
-            self.show_alert("Picker Error", str(e))
+        if ANDROID:
+            try:
+                if os.path.exists(BASE_DIR):
+                    zips = [os.path.join(BASE_DIR, f) for f in os.listdir(BASE_DIR) if f.endswith('.zip')]
+                    if zips:
+                        arc = zips[-1]
+                        outdir = os.path.join(BASE_DIR, "extracted_files")
+                        os.makedirs(outdir, exist_ok=True)
+                        pwd = self.pwd_input.text or None
+                        ok, msg = extract_archive(arc, outdir, password=pwd)
+                        self.status.text = "Status: Extraction complete"
+                        self.show_alert("Extraction Result", f"{msg}\nSaved to: {outdir}")
+                        return
+                self.show_alert("Notice", "No .zip archives found in Download folder.")
+            except Exception as e:
+                self.show_alert("Error", str(e))
+        else:
+            from plyer import filechooser
+            filechooser.open_file(on_selection=self.handle_archive_selection, filters=[("ZIP Archives", "*.zip")])
 
     def handle_archive_selection(self, selection):
         if not selection:
@@ -188,10 +203,9 @@ class SecureCompressor(BoxLayout):
         outdir = os.path.join(BASE_DIR, "extracted_files")
         os.makedirs(outdir, exist_ok=True)
         pwd = self.pwd_input.text or None
-        
         try:
             ok, msg = extract_archive(arc, outdir, password=pwd)
-            self.status.text = f"Status: Extraction complete"
+            self.status.text = "Status: Extraction complete"
             self.show_alert("Extraction Result", f"{msg}\nSaved to: {outdir}")
         except Exception as e:
             self.status.text = "Status: Extraction failed"
