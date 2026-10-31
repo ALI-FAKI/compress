@@ -9,8 +9,8 @@ source.include_exts = py,png,jpg,kv,atlas,ttf
 
 version = 0.1
 
-# Stable Python version + Kivy (using built-in zipfile for compression)
-requirements = python3==3.11.9,kivy
+# Clean requirements without explicit version pinning to prevent host/target mismatches
+requirements = python3,kivy
 
 orientation = portrait
 fullscreen = 0
