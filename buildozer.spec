@@ -9,9 +9,10 @@ source.include_exts = py,png,jpg,kv,atlas,ttf
 
 version = 0.1
 
-requirements = python3,kivy
+# Added plyer for native Android and desktop file selection dialogs
+requirements = python3,kivy,plyer
 
-# Pin to a stable release branch to avoid Python 3.14 wheel platform errors
+# Pin to a stable release branch to avoid Python wheel platform errors
 p4a.branch = v2024.01.21
 
 orientation = portrait
