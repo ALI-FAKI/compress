@@ -11,7 +11,7 @@ version = 0.1
 
 requirements = python3,kivy
 
-# Pin to stable p4a release (v2024.01.21) to avoid Python 3.14 Android wheel incompatibility on master
+# Pin to a stable release branch to avoid Python 3.14 wheel platform errors
 p4a.branch = v2024.01.21
 
 orientation = portrait
