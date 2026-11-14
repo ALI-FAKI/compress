@@ -17,7 +17,7 @@
         </div>
 
         <!-- Form -->
-        <form onsubmit="handleEncrypt(event)" class="space-y-4">
+        <form id="encrypt-form" onsubmit="handleEncrypt(event)" class="space-y-4">
             <!-- File Input -->
             <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Select File to Lock</label>
@@ -58,6 +58,7 @@
     <script>
         async function handleEncrypt(event) {
             event.preventDefault();
+            const form = document.getElementById('encrypt-form');
             const fileInput = document.getElementById('file-input');
             const passwordInput = document.getElementById('password-input');
             const compressionInput = document.getElementById('compression-input');
@@ -96,6 +97,9 @@
                 a.click();
                 a.remove();
                 window.URL.revokeObjectURL(url);
+
+                // Reset/clear the form fields so the selected file and inputs disappear from screen
+                form.reset();
 
                 statusBox.className = "mt-4 p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-300 border border-emerald-800 block";
                 statusBox.innerText = "Success. Protected file downloaded and ready for sharing.";
