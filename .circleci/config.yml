@@ -4,17 +4,37 @@ jobs:
   build:
     docker:
       - image: cimg/android:2024.01
+    resource_class: large
     steps:
       - checkout
       - run:
-          name: Install Python dependencies and Buildozer
+          name: Install System Dependencies & Buildozer
           command: |
             sudo apt-get update
-            sudo apt-get install -y python3-pip python3-dev git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext autopoint libltdl-dev
+            sudo apt-get install -y \
+              python3-pip \
+              python3-dev \
+              git \
+              zip \
+              unzip \
+              openjdk-17-jdk \
+              autoconf \
+              libtool \
+              pkg-config \
+              zlib1g-dev \
+              libncurses5-dev \
+              libncursesw5-dev \
+              libtinfo5 \
+              cmake \
+              libffi-dev \
+              libssl-dev \
+              gettext \
+              autopoint \
+              libltdl-dev
             pip3 install --upgrade pip
             pip3 install buildozer cython==0.29.33
       - run:
-          name: Build APK
+          name: Build APK with Buildozer
           command: |
             rm -rf .buildozer
             rm -rf ~/.buildozer
