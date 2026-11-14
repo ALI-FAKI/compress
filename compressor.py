@@ -4,7 +4,6 @@ import pyzipper
 
 def compress_and_encrypt(file_paths, output_path, password=None):
     """Compresses and securely encrypts files and folders using AES-256."""
-    # Use AES encryption if a password is provided, otherwise store normally
     encryption = pyzipper.WZ_AES if password else pyzipper.ZIP_STORED
     
     with pyzipper.AESZipFile(
