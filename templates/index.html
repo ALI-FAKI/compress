@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureVault - Web File Encryption</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 md:p-8">
+        
+        <!-- Header -->
+        <div class="mb-6 text-center">
+            <h1 class="text-2xl font-bold tracking-tight">🔒 SecureVault</h1>
+            <p class="text-sm text-slate-400 mt-1">AES-256 encrypted file sharing made simple</p>
+        </div>
+
+        <!-- Mode Selector Tabs -->
+        <div class="flex bg-slate-950 p-1 rounded-xl mb-6 border border-slate-800">
+            <button id="tab-encrypt" onclick="switchTab('encrypt')" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-emerald-600 text-white transition">Encrypt</button>
+            <button id="tab-decrypt" onclick="switchTab('decrypt')" class="flex-1 py-2 text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition">Decrypt</button>
+        </div>
+
+        <!-- Form -->
+        <form id="action-form" onsubmit="handleSubmit(event)" class="space-y-4">
+            <input type="hidden" id="mode" value="encrypt">
+
+            <!-- File Input -->
+            <div>
+                <label id="file-label" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Select File to Encrypt</label>
+                <input type="file" id="file-input" required class="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer border border-slate-800 rounded-xl p-2 bg-slate-950"/>
+            </div>
+
+            <!-- Password Input -->
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Security Password</label>
+                <input type="password" id="password-input" placeholder="Enter secure password" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition"/>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submit-btn" class="w-full py-3 px-4 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition duration-200">
+                🔒 Compress & Encrypt
+            </button>
+        </form>
+
+        <!-- Status Box -->
+        <div id="status-box" class="mt-4 hidden p-3 rounded-xl text-xs text-center"></div>
+
+    </div>
+
+    <script>
+        function switchTab(mode) {
+            const isEncrypt = mode === 'encrypt';
+            document.getElementById('mode').value = mode;
+            
+            const encTab = document.getElementById('tab-encrypt');
+            const decTab = document.getElementById('tab-decrypt');
+            const submitBtn = document.getElementById('submit-btn');
+            const fileLabel = document.getElementById('file-label');
+
+            if (isEncrypt) {
+                encTab.className = "flex-1 py-2 text-sm font-semibold rounded-lg bg-emerald-600 text-white transition";
+                decTab.className = "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition";
+                submitBtn.className = "w-full py-3 px-4 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition duration-200";
+                submitBtn.innerText = "🔒 Compress & Encrypt";
+                fileLabel.innerText = "Select File to Encrypt";
+            } else {
+                decTab.className = "flex-1 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white transition";
+                encTab.className = "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition";
+                submitBtn.className = "w-full py-3 px-4 rounded-xl font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-lg transition duration-200";
+                submitBtn.innerText = "📂 Decrypt & Extract Archive";
+                fileLabel.innerText = "Select .secure.zip Archive";
+            }
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+            const mode = document.getElementById('mode').value;
+            const fileInput = document.getElementById('file-input');
+            const passwordInput = document.getElementById('password-input');
+            const statusBox = document.getElementById('status-box');
+            const submitBtn = document.getElementById('submit-btn');
+
+            if (!fileInput.files[0]) return;
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('password', passwordInput.value);
+
+            submitBtn.disabled = true;
+            statusBox.className = "mt-4 p-3 rounded-xl text-xs text-center bg-slate-800 text-slate-300 block";
+            statusBox.innerText = "Processing request...";
+
+            const endpoint = mode === 'encrypt' ? '/api/encrypt' : '/api/decrypt';
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || "Operation failed");
+                }
+
+                // Trigger file download automatically
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = mode === 'encrypt' ? 'secure_archive.zip' : 'decrypted_files.zip';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+
+                statusBox.className = "mt-4 p-3 rounded-xl text-xs text-center bg-emerald-950 text-emerald-300 border border-emerald-800 block";
+                statusBox.innerText = "Success! File downloaded to your device.";
+            } catch (err) {
+                statusBox.className = "mt-4 p-3 rounded-xl text-xs text-center bg-rose-950 text-rose-300 border border-rose-800 block";
+                statusBox.innerText = err.message;
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
