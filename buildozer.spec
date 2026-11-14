@@ -9,8 +9,8 @@ source.include_exts = py,png,jpg,kv,atlas,ttf
 
 version = 0.1
 
-# Added plyer for native Android and desktop file selection dialogs
-requirements = python3,kivy,plyer
+# Added pyzipper for AES encryption and plyer for file selection dialogs
+requirements = python3,kivy,plyer,pyzipper
 
 # Pin to a stable release branch to avoid Python wheel platform errors
 p4a.branch = v2024.01.21
