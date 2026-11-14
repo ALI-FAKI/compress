@@ -17,6 +17,7 @@ def create_secure_zip():
     
     file = request.files['file']
     password = request.form.get('password', '').strip()
+    compression_mode = request.form.get('compression', 'deflate')  # 'store' or 'deflate'
     
     if not file.filename:
         return jsonify({'error': 'Empty filename'}), 400
@@ -24,18 +25,22 @@ def create_secure_zip():
     if not password:
         return jsonify({'error': 'Password is required to lock the file'}), 400
 
-    # Use a temporary directory for safe server-side processing
+    # Choose compression algorithm based on user selection
+    # ZIP_STORED = No compression (Fast, good for large media files)
+    # ZIP_DEFLATED = Standard compression (Smaller file size)
+    compression_method = pyzipper.ZIP_STORED if compression_mode == 'none' else pyzipper.ZIP_DEFLATED
+
     with tempfile.TemporaryDirectory() as temp_dir:
         input_path = os.path.join(temp_dir, file.filename)
         file.save(input_path)
         
         output_zip = os.path.join(temp_dir, 'secure_package.zip')
         
-        # Compress and encrypt using AES-256 (WZ_AES) via pyzipper
+        # Create AES-256 encrypted archive with selected compression
         with pyzipper.AESZipFile(
             output_zip, 
             'w', 
-            compression=pyzipper.ZIP_DEFLATED, 
+            compression=compression_method, 
             encryption=pyzipper.WZ_AES
         ) as zf:
             zf.pwd = password.encode('utf-8')
