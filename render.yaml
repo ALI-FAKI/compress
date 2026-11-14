@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: secure-vault-app
+    env: python
+    region: frankfurt # Or choose any region closest to you
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
