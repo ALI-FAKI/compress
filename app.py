@@ -1,9 +1,30 @@
 import os
+import shutil
+import logging
 import tempfile
+from flask import (
+    Flask, render_template, request, send_file, jsonify
+)
 import pyzipper
-from flask import Flask, render_template, request, send_file, jsonify
 
 app = Flask(__name__)
+
+# Hard cap on upload size (bytes). Adjust if you allow larger files.
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200 MB
+
+ALLOWED_COMPRESSION = {'deflate', 'none'}
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+def sanitize_filename(name: str) -> str:
+    name = os.path.basename(name or '').strip()
+    name = ''.join(ch for ch in name if ch.isprintable())
+    if not name:
+        name = 'file'
+    return name[:180]
+
 
 @app.route('/')
 def index():
@@ -14,44 +35,82 @@ def index():
 def create_secure_zip():
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
-    
+
     file = request.files['file']
-    password = request.form.get('password', '').strip()
-    compression_mode = request.form.get('compression', 'deflate')  # 'store' or 'deflate'
-    
+    # Never strip/normalize the password — every byte matters.
+    password = request.form.get('password', '')
+    compression_mode = request.form.get('compression', 'deflate').lower()
+
     if not file.filename:
         return jsonify({'error': 'Empty filename'}), 400
 
+    # Only requirement: password must be non-empty.
     if not password:
         return jsonify({'error': 'Password is required to lock the file'}), 400
 
-    # Choose compression algorithm based on user selection
-    # ZIP_STORED = No compression (Fast, good for large media files)
-    # ZIP_DEFLATED = Standard compression (Smaller file size)
-    compression_method = pyzipper.ZIP_STORED if compression_mode == 'none' else pyzipper.ZIP_DEFLATED
+    if compression_mode not in ALLOWED_COMPRESSION:
+        compression_mode = 'deflate'
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        input_path = os.path.join(temp_dir, file.filename)
-        file.save(input_path)
-        
-        output_zip = os.path.join(temp_dir, 'secure_package.zip')
-        
-        # Create AES-256 encrypted archive with selected compression
+    safe_name = sanitize_filename(file.filename)
+    download_name = f"{safe_name}.secure.zip"
+
+    compression_method = (
+        pyzipper.ZIP_STORED if compression_mode == 'none'
+        else pyzipper.ZIP_DEFLATED
+    )
+
+    tmp = tempfile.NamedTemporaryFile(
+        mode='wb', suffix='.zip', prefix='securevault-', delete=False
+    )
+    tmp_path = tmp.name
+    tmp.close()
+
+    try:
         with pyzipper.AESZipFile(
-            output_zip, 
-            'w', 
-            compression=compression_method, 
-            encryption=pyzipper.WZ_AES
+            tmp_path,
+            'w',
+            compression=compression_method,
+            encryption=pyzipper.WZ_AES,
         ) as zf:
             zf.pwd = password.encode('utf-8')
-            zf.write(input_path, arcname=file.filename)
-        
-        return send_file(
-            output_zip, 
-            as_attachment=True, 
-            download_name=f"{file.filename}.secure.zip"
-        )
+            with zf.open(safe_name, 'w') as dest:
+                shutil.copyfileobj(file.stream, dest)
+    except Exception:
+        logger.exception('Encryption failed for upload %r', safe_name)
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        return jsonify({'error': 'Encryption failed. Please try again.'}), 500
+
+    response = send_file(
+        tmp_path,
+        as_attachment=True,
+        download_name=download_name,
+        mimetype='application/zip',
+    )
+    response.call_on_close(lambda: _safe_remove(tmp_path))
+    return response
+
+
+def _safe_remove(path: str) -> None:
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+@app.errorhandler(413)
+def too_large(_e):
+    return jsonify({
+        'error': 'File is too large. Maximum size is 200 MB.'
+    }), 413
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(
+        host='0.0.0.0',
+        port=int(os.environ.get('PORT', 5000)),
+        debug=debug,
+    )
